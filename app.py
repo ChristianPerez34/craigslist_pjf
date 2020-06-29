@@ -25,8 +25,22 @@ class CraigslistPJF:
             random.shuffle(self.cities)
         return self.cities[:num_cities]
 
+    def scrape_gigs(self):
+        for link in self.cities:
+            gig_page = requests.get(f"{link}search/ggg?")
+            gig_soup = BeautifulSoup(gig_page.content, 'html.parser')
+            gig_posts = gig_soup.find_all("p", class_="result-info")
+
+            # TODO: Only get gigs that have been posted in the last 3 days. 
+            print(gig_soup)
+        pass
+
+    def scrape_jobs(self):
+        pass
+
 
 pjf = CraigslistPJF(url="https://www.craigslist.org/about/sites#US")
 pjf.get_us_cities_links()
 links = pjf.select_rand_cities(num_cities=5)
+pjf.scrape_gigs()
 print(links)
