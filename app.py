@@ -1,8 +1,11 @@
 import csv
 import random
+import time
 from datetime import datetime
+from pathlib import Path
 
 import requests
+import schedule
 import yagmail
 from bs4 import BeautifulSoup
 from yattag import Doc
@@ -65,32 +68,41 @@ class CraigslistPJF:
         pass
 
 
-pjf = CraigslistPJF(url='https://www.craigslist.org/about/sites#US')
-pjf.get_us_cities_links()
-pjf.select_rand_cities(num_cities=5)
-pjf.scrape_gigs()
-pjf.output_to_excel()
+def job():
+    pjf = CraigslistPJF(url='https://www.craigslist.org/about/sites#US')
+    pjf.get_us_cities_links()
+    pjf.select_rand_cities(num_cities=5)
+    pjf.scrape_gigs()
+    pjf.output_to_excel()
 
-doc, tag, text, line = Doc().ttl()
-recipients = ['christian.perez34@outlook.com']
-subject = f"Craigslist Gigs {datetime.today().date()}"
+    doc, tag, text, line = Doc().ttl()
+    recipients = ['christian.perez34@outlook.com']
+    subject = f"Craigslist Gigs {datetime.today().date()}"
 
-with tag('p'):
-    text("Today's list of available gigs")
-    line('br', '')
-with tag('table'):
-    with tag('tr'):
-        with tag('th'):
-            text('Link')
-        with tag('th'):
-            text('Title')
-    for gig in pjf.gigs:
+    with tag('p'):
+        text("Today's list of available gigs")
+        line('br', '')
+    with tag('table'):
         with tag('tr'):
-            with tag('td'):
-                with tag('a', href=gig['link']):
-                    text(gig['link'])
-            with tag('td'):
-                text(gig['title'])
+            with tag('th'):
+                text('Link')
+            with tag('th'):
+                text('Title')
+        for gig in pjf.gigs:
+            with tag('tr'):
+                with tag('td'):
+                    with tag('a', href=gig['link']):
+                        text(gig['link'])
+                with tag('td'):
+                    text(gig['title'])
 
-message = doc.getvalue()
-send_email(recipients, subject, message)
+    message = doc.getvalue()
+    attachment = Path("craigslist_gigs.csv").resolve()
+    content = [message, str(attachment)]
+    send_email(recipients, subject, content)
+
+
+schedule.every().day.at("10:00").do(job)
+while True:
+    schedule.run_pending()
+    time.sleep(1)
