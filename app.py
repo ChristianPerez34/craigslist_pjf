@@ -1,4 +1,5 @@
 import csv
+import os
 import random
 import time
 from datetime import datetime
@@ -11,11 +12,6 @@ from bs4 import BeautifulSoup
 from yattag import Doc
 
 
-def send_email(recipients, subject, body):
-    with yagmail.SMTP('pymail102') as yag:
-        yag.send(recipients, subject, body)
-
-
 class CraigslistPJF:
 
     def __init__(self, *args, **kwargs):
@@ -25,6 +21,9 @@ class CraigslistPJF:
         self.gigs = []
 
     def get_us_cities_links(self):
+        """
+        Gets all us city links from Craigslist and stores it in a list.
+        """
         page = requests.get(self.url)
         soup = BeautifulSoup(page.content, 'html.parser')
 
@@ -35,37 +34,66 @@ class CraigslistPJF:
         self.cities = [city['href'] for city in result.find_all('a')]
 
     def select_rand_cities(self, num_cities):
-        for i in range(100):
-            random.shuffle(self.cities)
+        """
+        Selects random city links to scrape
+        :param num_cities: int
+            Number of cities to scrape
+        """
+        random.shuffle(self.cities)
         self.cities = self.cities[:num_cities]
 
     def scrape_gigs(self):
+        """
+        Scrapes gigs for visited gig pages
+        """
         for link in self.cities:
+            # View gigs
             gig_page = requests.get(f'{link}search/ggg?')
             gig_soup = BeautifulSoup(gig_page.content, 'html.parser')
+
+            # Gets all gigs on page
             gig_posts = gig_soup.find_all('p', class_='result-info')
 
             for post in gig_posts:
                 date_str = post.find('time').attrs['datetime']
                 date = datetime.strptime(date_str, '%Y-%m-%d %H:%M').date()
 
+                # Filters out gigs that have been posted 4+ days ago
                 if (self.today - date).days < 4:
                     gig = post.find(class_='result-title')
                     gig_link = gig.attrs['href']
+
+                    # Stores scraped data in a list
                     self.gigs.append({'link': gig_link, 'title': gig.text})
                 else:
                     break
 
     def output_to_excel(self):
+        """
+        Outputs scraped data to a csv file
+        """
         with open('craigslist_gigs.csv', mode='w', encoding='utf-8', newline='') as csv_file:
             fieldnames = ['link', 'title']
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-
             writer.writeheader()
             writer.writerows(self.gigs)
 
     def scrape_jobs(self):
         pass
+
+
+def send_email(recipients, subject, content):
+    """
+    Sends email to recipients
+    :param recipients: list
+        People that will receive email to be sent
+    :param subject: str
+        Subject of the email
+    :param content: list
+        Message body and any attachments
+    """
+    with yagmail.SMTP(GMAIL_USER, GMAIL_PASS) as yag:
+        yag.send(recipients, subject, content)
 
 
 def job():
@@ -102,7 +130,13 @@ def job():
     send_email(recipients, subject, content)
 
 
-schedule.every().day.at("10:00").do(job)
+GMAIL_USER = os.getenv('GMAIL_USER', None)
+GMAIL_PASS = os.getenv('GMAIL_PASS', None)
+
+if not GMAIL_USER or not GMAIL_PASS:
+    raise ValueError("'GMAIL_USER'/'GMAIL_PASS' environment variable not set")
+
+schedule.every().day.at("11:30").do(job)
 while True:
     schedule.run_pending()
     time.sleep(1)
