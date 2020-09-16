@@ -1,6 +1,6 @@
 requests>=2.24.0
 beautifulsoup4>=4.9.1
-yagmail==0.11.224
+yagmail==0.13.238
 keyring==21.4.0
 yattag==1.14.0
 schedule>=0.6.0
